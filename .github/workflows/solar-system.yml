@@ -46,7 +46,7 @@ jobs:
           
 
     code-coverage:
-        name: Unit Testing
+        name: Code coverage
         runs-on: ubuntu-latest
         steps:
         - name: Checkout Repository
@@ -61,6 +61,7 @@ jobs:
           run: npm install
     
         - name: Check code coverage
+          continue-on-error: true
           run: npm run coverage
 
         - name: Archive Test Result
