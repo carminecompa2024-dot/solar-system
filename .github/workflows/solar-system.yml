@@ -180,7 +180,7 @@ jobs:
          - name: Set Kubeconfig
            run: |
             # Decode the secret and save it to a file
-            echo "${{ secrets.KUBECONFIG }}" | base64 --decode > kubeconfig.yaml
+            echo "${{ vars.KUBECONFIG }}" | base64 --decode > kubeconfig.yaml
       
          - name: Set Context
            uses: azure/k8s-set-context@v4
