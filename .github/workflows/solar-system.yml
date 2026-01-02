@@ -190,6 +190,7 @@ jobs:
             kubectl get nodes
 
             
+            
 
 
   
