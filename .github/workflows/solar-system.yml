@@ -177,11 +177,17 @@ jobs:
            with:
                version: 'latest' # default is latest stable
 
-         - name: Set Kubeconfig
-           uses: azure/k8s-set-context@v4
+        # - name: Set Kubeconfig
+         #  uses: azure/k8s-set-context@v4
+          # with:
+           # method: kubeconfig
+           #  kubeconfig: ${{ secrets.KUBECONFIG }}
+
+         - name: Setup Minikube
+           uses: manusa/actions-setup-minikube@v2.11.0
            with:
-             method: kubeconfig
-             kubeconfig: ${{ secrets.KUBECONFIG }}
+              minikube version: 'v1.32.0'
+              kubernetes version: 'v1.28.3'
 
          - name:  Fetch Kubernetes Cluster Details
            run: |
@@ -189,7 +195,7 @@ jobs:
             echo ------------------------------------------
             kubectl get nodes
 
-            
+
 
 
             
