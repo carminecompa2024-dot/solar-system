@@ -167,7 +167,8 @@ jobs:
 
     dev-deploy:
       needs: docker
-      runs-on: ubuntu-latest
+      #runs-on: ubuntu-20
+      runs-on: ubuntu-22.04
       steps:
          - name: Checkout Repo
            uses: actions/checkout@v4     
