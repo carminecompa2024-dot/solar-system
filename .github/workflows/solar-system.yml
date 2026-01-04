@@ -178,15 +178,10 @@ jobs:
                version: 'latest' # default is latest stable
 
          - name: Set Kubeconfig
-           run: |
-            # Decode the secret and save it to a file
-            echo "${{ vars.KUBECONFIG }}" | base64 --decode > kubeconfig.yaml
-      
-         - name: Set Context
            uses: azure/k8s-set-context@v4
            with:
              method: kubeconfig
-             kubeconfig: ${{ github.workspace }}/kubeconfig.yaml
+             kubeconfig: ${{ secrets.KUBECONFIG }}
 
          - name:  Fetch Kubernetes Cluster Details
            run: |
