@@ -204,7 +204,7 @@ jobs:
             
          - name: Save NGINX Ingress Controller of Minikube cluster
            run: |
-             echo "INGRESS_IP={( minikube ip )}"  >> $GITHUB_ENV
+             echo "INGRESS_IP=$( minikube ip )"  >> $GITHUB_ENV
 
             
 
