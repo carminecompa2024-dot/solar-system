@@ -1,0 +1,179 @@
+name: Test Pyramid Workflow
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'feature/*'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  # Base of Pyramid: Unit Tests
+  # Fast, isolated tests that make up the largest portion of the test suite
+  unit-tests:
+    name: Unit Tests (Base Layer)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup NodeJS Version
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Unit Tests
+        run: npm test
+
+      - name: Archive Unit Test Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: unit-test-results
+          path: test-results.xml
+
+  # Middle of Pyramid: Integration Tests
+  # Tests that verify components work together, includes code coverage
+  integration-tests:
+    name: Integration Tests (Middle Layer)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup NodeJS Version
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Integration Tests with Coverage
+        run: npm run coverage
+
+      - name: Archive Coverage Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: |
+            coverage/
+            coverage.json
+
+  # Top of Pyramid: End-to-End/Smoke Tests
+  # Fewer tests that validate critical user journeys and system health
+  e2e-smoke-tests:
+    name: E2E & Smoke Tests (Top Layer)
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup NodeJS Version
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Start MongoDB
+        run: |
+          docker run -d -p 27017:27017 --name mongodb \
+            -e MONGO_INITDB_ROOT_USERNAME=test \
+            -e MONGO_INITDB_ROOT_PASSWORD=test \
+            mongo:5.0
+
+      - name: Wait for MongoDB
+        run: |
+          echo "Waiting for MongoDB to be ready..."
+          for i in {1..30}; do
+            if docker exec mongodb mongosh --eval "db.adminCommand('ping')" &> /dev/null; then
+              echo "MongoDB is ready!"
+              break
+            fi
+            echo "Waiting for MongoDB... ($i/30)"
+            sleep 2
+          done
+
+      - name: Start Application
+        run: |
+          npm start &
+          APP_PID=$!
+          echo "APP_PID=$APP_PID" >> $GITHUB_ENV
+        env:
+          MONGO_URI: mongodb://localhost:27017/solar-system
+          MONGO_USERNAME: test
+          MONGO_PASSWORD: test
+
+      - name: Wait for Application
+        run: |
+          echo "Waiting for application to be ready..."
+          for i in {1..30}; do
+            if curl -f http://localhost:3000/live &> /dev/null; then
+              echo "Application is ready!"
+              break
+            fi
+            echo "Waiting for application... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run Smoke Tests
+        run: |
+          echo "Running smoke tests to verify critical endpoints..."
+          echo "=========================================="
+          
+          echo "Testing /live endpoint..."
+          curl -f http://localhost:3000/live || exit 1
+          echo "✓ /live endpoint passed"
+          
+          echo "Testing /ready endpoint..."
+          curl -f http://localhost:3000/ready || exit 1
+          echo "✓ /ready endpoint passed"
+          
+          echo "Testing /os endpoint..."
+          curl -f http://localhost:3000/os || exit 1
+          echo "✓ /os endpoint passed"
+          
+          echo "=========================================="
+          echo "All smoke tests passed!"
+
+  # Summary Job: Report overall test pyramid results
+  test-pyramid-summary:
+    name: Test Pyramid Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-smoke-tests]
+    if: always()
+    steps:
+      - name: Test Pyramid Summary
+        run: |
+          echo "=========================================="
+          echo "        TEST PYRAMID RESULTS"
+          echo "=========================================="
+          
+          UNIT_STATUS="${{ needs.unit-tests.result }}"
+          INTEGRATION_STATUS="${{ needs.integration-tests.result }}"
+          E2E_STATUS="${{ needs.e2e-smoke-tests.result }}"
+          
+          echo "Unit Tests (Base Layer): $UNIT_STATUS"
+          echo "Integration Tests (Middle Layer): $INTEGRATION_STATUS"
+          echo "E2E/Smoke Tests (Top Layer): $E2E_STATUS"
+          echo "=========================================="
+          
+          if [[ "$UNIT_STATUS" == "success" && "$INTEGRATION_STATUS" == "success" && "$E2E_STATUS" == "success" ]]; then
+            echo "✓ All test pyramid layers executed successfully!"
+            exit 0
+          else
+            echo "✗ Some test pyramid layers failed. Please review the results above."
+            exit 1
+          fi
