@@ -10,6 +10,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   # Base of Pyramid: Unit Tests
   # Fast, isolated tests that make up the largest portion of the test suite
